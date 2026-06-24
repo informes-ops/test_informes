@@ -1,0 +1,34 @@
+<?php
+/* Prueba rápida de WhatsApp informe final. Borra este archivo después de probar. */
+header('Content-Type: application/json; charset=utf-8');
+date_default_timezone_set('America/Lima');
+
+try {
+    require_once __DIR__ . '/whatsapp_lib.php';
+
+    if (!function_exists('enviarWhatsAppNuevoInforme')) {
+        throw new Exception('No existe la función enviarWhatsAppNuevoInforme() en whatsapp_lib.php');
+    }
+
+    $resultado = enviarWhatsAppNuevoInforme(
+        'Carlos Ruiz',
+        'Nestlé Perú SAC',
+        '10020261054',
+        'INGRESO EQUIPO NEW GENSET',
+        date('d/m/Y H:i:s'),
+        'informe_10020261054_20260604_071403_demo.pdf',
+        'Oquendo, Callao, Lima Metropolitana, Perú'
+    );
+
+    echo json_encode([
+        'ok' => !empty($resultado['ok']),
+        'plantilla' => defined('WA_TEMPLATE_NUEVO_INFORME') ? WA_TEMPLATE_NUEVO_INFORME : 'nuevo_informe_tecnico_acciones',
+        'idioma' => defined('WA_TEMPLATE_LANG') ? WA_TEMPLATE_LANG : 'es_PE',
+        'resultado' => $resultado
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+} catch (Throwable $e) {
+    echo json_encode([
+        'ok' => false,
+        'error' => $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+}

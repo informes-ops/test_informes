@@ -1,0 +1,6 @@
+[2026-06-24 09:15:16] SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '039425' for key 'cotizacion'
+[2026-06-24 09:17:34] SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '039425' for key 'cotizacion'
+[2026-06-24 09:19:00] SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '039425' for key 'cotizacion'
+[2026-06-24 09:19:17] SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '039425' for key 'cotizacion'
+[2026-06-24 09:29:05] SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '039425' for key 'cotizacion'
+[2026-06-24 09:30:34] SQLSTATE[23000]: Integrity constraint violation: 1062 Duplicate entry '039425' for key 'cotizacion'

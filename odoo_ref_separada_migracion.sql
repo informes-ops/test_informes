@@ -1,0 +1,5 @@
+ALTER TABLE inspecciones_preliminares
+  ADD COLUMN IF NOT EXISTS odoo_ticket_ref VARCHAR(120) DEFAULT NULL;
+
+ALTER TABLE informes
+  ADD COLUMN IF NOT EXISTS odoo_ticket_ref VARCHAR(120) DEFAULT NULL;

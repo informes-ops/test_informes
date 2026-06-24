@@ -1,0 +1,14 @@
+{
+  "name": "ZGROUP Área Técnica",
+  "short_name": "ZGROUP Técnico",
+  "start_url": "/panel.php",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#16263f",
+  "theme_color": "#1f6fc4",
+  "description": "Panel de informes técnicos y notificaciones de supervisión.",
+  "icons": [
+    { "src": "zgroup-logo.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "zgroup-logo.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
