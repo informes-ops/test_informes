@@ -1,0 +1,35 @@
+# Credenciales y configuración local
+app/Config/database.local.php
+telegram_config.php
+whatsapp_config.php
+push_config.php
+odoo_config.php
+
+# PDFs generados
+informes/
+*.pdf
+
+# Logs de depuración
+*.log
+claude_ia_debug.log
+odoo_debug.log
+telegram_debug.log
+whatsapp_debug.log
+actualizar_informe_debug.log
+odoo_reporte_panel.log
+php_output_debug.log
+preinspeccion_debug.log
+
+# Archivos temporales / descargas
+*.crdownload
+Sin confirmar*
+
+# IDE y sistema
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Dependencias (si se añaden en el futuro)
+vendor/
+node_modules/
