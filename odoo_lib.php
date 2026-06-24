@@ -529,13 +529,29 @@ if (!function_exists('zgOdooSyncInforme')) {
                 if ($attachmentId <= 0) throw new RuntimeException('Odoo no devolvió un ID válido para el adjunto.');
             }
 
+            $messageId = 0;
+            $notifyError = null;
+            if (function_exists('zgOdooNotifyTicketAttachment')) {
+                try {
+                    $notify = zgOdooNotifyTicketAttachment($uid, $ticketId, $attachmentId);
+                    $messageId = (int)($notify['message_id'] ?? 0);
+                } catch (Throwable $notifyErr) {
+                    $notifyError = zgOdooShortError($notifyErr);
+                    @file_put_contents(
+                        __DIR__ . '/odoo_debug.log',
+                        '[' . date('Y-m-d H:i:s') . '] Notificación chatter ticket ' . $ticketId . ': ' . $notifyError . PHP_EOL,
+                        FILE_APPEND
+                    );
+                }
+            }
+
             zgOdooUpdateInformeState($pdo, $informeId, [
                 'odoo_estado' => 'sincronizado',
                 'odoo_ticket_ref' => $ticketRef,
                 'odoo_ticket_id' => $ticketId,
                 'odoo_attachment_id' => $attachmentId,
                 'odoo_nombre_adjunto' => $attachmentName,
-                'odoo_error' => null,
+                'odoo_error' => $notifyError,
                 'odoo_sincronizado_en' => date('Y-m-d H:i:s'),
             ]);
 
@@ -547,6 +563,8 @@ if (!function_exists('zgOdooSyncInforme')) {
                 'ticket_id' => $ticketId,
                 'attachment_id' => $attachmentId,
                 'attachment_name' => $attachmentName,
+                'message_id' => $messageId,
+                'notify_error' => $notifyError,
                 'protocolo' => 'XML-RPC',
             ];
         } catch (Throwable $e) {
@@ -562,5 +580,66 @@ if (!function_exists('zgOdooSyncInforme')) {
             );
             return ['ok' => false, 'estado' => 'error', 'ticket_ref' => $ticketRef, 'error' => $error, 'protocolo' => 'XML-RPC'];
         }
+    }
+}
+
+if (!function_exists('zgOdooNotifyTicketAttachment')) {
+    /**
+     * Publica comentario en el chatter del ticket y notifica al creador.
+     * Equivalente al Paso D de probar_odoo_conexion.php.
+     */
+    function zgOdooNotifyTicketAttachment(int $uid, int $ticketId, int $attachmentId): array
+    {
+        if ($ticketId <= 0 || $attachmentId <= 0) {
+            throw new RuntimeException('Ticket o adjunto inválido para la notificación.');
+        }
+
+        $ticketModel = defined('ODOO_TICKET_MODEL') ? (string)ODOO_TICKET_MODEL : 'helpdesk.ticket';
+        $ticketRows = zgOdooExecuteKw($uid, $ticketModel, 'read', [[$ticketId], ['create_uid']]);
+        if (!is_array($ticketRows) || empty($ticketRows[0])) {
+            throw new RuntimeException('No se pudo leer el ticket en Odoo.');
+        }
+
+        $createUid = $ticketRows[0]['create_uid'] ?? null;
+        $creatorUserId = is_array($createUid) ? (int)($createUid[0] ?? 0) : (int)$createUid;
+        $creatorName = is_array($createUid) ? trim((string)($createUid[1] ?? '')) : '';
+        if ($creatorName === '') {
+            $creatorName = 'responsable';
+        }
+        if ($creatorUserId <= 0) {
+            throw new RuntimeException('El ticket no tiene un creador identificable en Odoo.');
+        }
+
+        $userRows = zgOdooExecuteKw($uid, 'res.users', 'read', [[$creatorUserId], ['partner_id']]);
+        $partnerId = 0;
+        if (is_array($userRows) && !empty($userRows[0]['partner_id'])) {
+            $partner = $userRows[0]['partner_id'];
+            $partnerId = is_array($partner) ? (int)($partner[0] ?? 0) : (int)$partner;
+        }
+        if ($partnerId <= 0) {
+            throw new RuntimeException('No se pudo obtener el Partner ID del creador del ticket.');
+        }
+
+        $textBody = "Se ha adjuntado automáticamente un reporte desde el aplicativo externo.\n\n"
+            . 'Atención @' . $creatorName . ' favor de revisar el archivo adjunto.';
+
+        $messageId = zgOdooExecuteKw($uid, $ticketModel, 'message_post', [[$ticketId]], [
+            'body' => $textBody,
+            'message_type' => 'comment',
+            'subtype_xmlid' => 'mail.mt_comment',
+            'attachment_ids' => [$attachmentId],
+            'partner_ids' => [$partnerId],
+            'context' => [
+                'mail_notify_force_send' => true,
+                'mail_notify_author' => true,
+                'mail_post_autofollow' => true,
+            ],
+        ]);
+
+        return [
+            'message_id' => (int)$messageId,
+            'partner_id' => $partnerId,
+            'creator_name' => $creatorName,
+        ];
     }
 }

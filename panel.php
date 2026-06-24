@@ -2584,7 +2584,6 @@ $tecnicosMostrar = $hayFiltros
     }));
 $totalMostrado = count($rowsFiltradas);
 
-function e($s) { return htmlspecialchars($s ?? '', ENT_QUOTES, 'UTF-8'); }
 function inicial($s) {
     $s = trim((string)$s);
     if ($s === '') return '?';
@@ -2595,11 +2594,6 @@ function fechaBonita($iso) {
     if (!$iso) return '—';
     $p = explode('-', $iso);
     return count($p) === 3 ? "$p[2]/$p[1]/$p[0]" : $iso;
-}
-function fechaHora($dt) {
-    if (!$dt) return '—';
-    $ts = strtotime($dt);
-    return $ts ? date('d/m/Y · H:i:s', $ts) : e($dt);
 }
 function horarioServicioPanel($dt) {
     if (!$dt) return '<span class="muted">—</span>';
@@ -4637,9 +4631,20 @@ document.querySelectorAll('[data-jump]').forEach(btn => {
       fd.append('informe_id', id);
       fd.append('csrf', csrf);
       const response = await fetch('sincronizar_odoo.php', {method:'POST', body:fd, credentials:'same-origin'});
-      const out = await response.json();
+      let out = null;
+      try { out = await response.json(); } catch(e) { out = null; }
+      if(!out || typeof out !== 'object'){
+        throw new Error('Respuesta inválida del servidor (HTTP ' + response.status + ').');
+      }
       if(!out.ok) throw new Error(out.error || 'No se pudo sincronizar con Odoo.');
-      alert('PDF sincronizado con Odoo.\nTicket: ' + (out.ticket_ref || '-') + '\nAdjunto ID: ' + (out.attachment_id || '-'));
+      const detalle = [
+        out.mensaje || 'PDF sincronizado con Odoo.',
+        'Ticket: ' + (out.ticket_ref || '-'),
+        out.ticket_id ? 'ID interno Odoo: ' + out.ticket_id : '',
+        'Adjunto #' + (out.attachment_id || '-'),
+        out.message_id ? 'Mensaje chatter #' + out.message_id : ''
+      ].filter(Boolean).join('\n');
+      alert(detalle);
       location.reload();
     }catch(error){
       alert('El informe continúa guardado en la web, pero Odoo respondió: ' + error.message);

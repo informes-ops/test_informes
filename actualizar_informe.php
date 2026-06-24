@@ -42,6 +42,33 @@ function zgHoraSql($value): ?string {
     if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/', $value)) $value .= ':00';
     return preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value) ? $value : null;
 }
+function zgPdfUploadErrorMessage(): string {
+    $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+    $postMax = ini_get('post_max_size') ?: '8M';
+    $uploadMax = ini_get('upload_max_filesize') ?: '2M';
+    if ($contentLength > 0 && !$_POST && !$_FILES) {
+        return 'La solicitud supera el límite del servidor (post_max_size=' . $postMax . '). Reduce fotos o pide al administrador subir los límites PHP.';
+    }
+    if (!isset($_FILES['pdf'])) {
+        return 'No se recibió el PDF actualizado. Verifica tu conexión e inténtalo de nuevo.';
+    }
+    $err = (int)($_FILES['pdf']['error'] ?? UPLOAD_ERR_NO_FILE);
+    $map = [
+        UPLOAD_ERR_INI_SIZE => 'El PDF supera upload_max_filesize (' . $uploadMax . ').',
+        UPLOAD_ERR_FORM_SIZE => 'El PDF supera el tamaño permitido por el formulario.',
+        UPLOAD_ERR_PARTIAL => 'La subida del PDF quedó incompleta. Inténtalo otra vez.',
+        UPLOAD_ERR_NO_FILE => 'No llegó ningún archivo PDF al servidor.',
+        UPLOAD_ERR_NO_TMP_DIR => 'El servidor no tiene carpeta temporal para subidas.',
+        UPLOAD_ERR_CANT_WRITE => 'El servidor no pudo escribir el PDF en disco.',
+        UPLOAD_ERR_EXTENSION => 'Una extensión de PHP bloqueó la subida del PDF.',
+    ];
+    $size = (int)($_FILES['pdf']['size'] ?? 0);
+    $detail = $map[$err] ?? ('Error de subida del PDF (código ' . $err . ').');
+    if ($size > 0) {
+        $detail .= ' Tamaño recibido: ' . round($size / 1024 / 1024, 2) . ' MB.';
+    }
+    return 'No se recibió el PDF actualizado. ' . $detail;
+}
 
 if (empty($_SESSION['panel_ok'])) zgFail('La sesión del panel venció. Vuelve a ingresar.', 403);
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') zgFail('Método no permitido.', 405);
@@ -137,8 +164,26 @@ if ($repuestos_actualizados || $repuestos_manual !== '') {
     $datos_json = json_encode($snapshot, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 }
 
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', __DIR__);
+}
+require_once __DIR__ . '/app/Helpers/helpers.php';
+$errComercial = zgroup_validate_condicion_comercial_repuestos($snapshot, $repuestos_manual, $tipo_equipo, $trabajos);
+if ($errComercial !== null) {
+    zgFail($errComercial);
+}
+
 if (!isset($_FILES['pdf']) || $_FILES['pdf']['error'] !== UPLOAD_ERR_OK) {
-    zgFail('No se recibió el PDF actualizado.');
+    @file_put_contents(
+        __DIR__ . '/actualizar_informe_debug.log',
+        '[' . date('Y-m-d H:i:s') . '] PDF upload fail ID ' . $id
+            . ' | CONTENT_LENGTH=' . (int)($_SERVER['CONTENT_LENGTH'] ?? 0)
+            . ' | FILES=' . json_encode($_FILES, JSON_UNESCAPED_UNICODE)
+            . ' | post_max=' . ini_get('post_max_size')
+            . ' | upload_max=' . ini_get('upload_max_filesize') . PHP_EOL,
+        FILE_APPEND
+    );
+    zgFail(zgPdfUploadErrorMessage());
 }
 $tmp = $_FILES['pdf']['tmp_name'];
 if (!is_uploaded_file($tmp)) zgFail('La subida del PDF no es válida.');

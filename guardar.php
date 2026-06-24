@@ -155,6 +155,15 @@ if ($direccion === '') fail('Falta elegir la dirección/ubicación.');
 if ($trabajos === '') fail('Falta seleccionar el trabajo realizado.');
 if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $fecha)) $fecha = date('Y-m-d');
 
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', __DIR__);
+}
+require_once __DIR__ . '/app/Helpers/helpers.php';
+$errComercial = zgroup_validate_condicion_comercial_repuestos($snapshot_guardado, $repuestos_manual, $tipo_equipo, $trabajos);
+if ($errComercial !== null) {
+    fail($errComercial);
+}
+
 $tecnico_nombre = 'Técnico';
 try {
     $stmtTec = $pdo->prepare('SELECT nombre FROM tecnicos WHERE id = ? LIMIT 1');

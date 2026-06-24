@@ -1,0 +1,56 @@
+# ZGROUP Informes — entorno Docker opcional (puerto 8877)
+# Uso: bash scripts/docker_up.sh
+# Apache nativo sigue siendo el modo predeterminado: sudo bash scripts/setup_apache.sh
+
+name: zgroup-informes
+
+services:
+  db:
+    image: mariadb:10.11
+    container_name: zgroup-informes-db
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${DB_NAME:-zgroupin_zgroupinformes}
+      MYSQL_USER: ${DB_USER:-zgroupin_zgroupuser}
+      MYSQL_PASSWORD: ${DB_PASS:-ZGROUP_2026}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASS:-root}
+    volumes:
+      - zgroup_db_data:/var/lib/mysql
+      - ./zgroupin_zgroupinformes.sql:/docker-entrypoint-initdb.d/01-import.sql:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+      start_period: 30s
+    networks:
+      - zgroup_net
+
+  web:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile
+    container_name: zgroup-informes-web
+    restart: unless-stopped
+    ports:
+      - "${WEB_PORT:-8877}:80"
+    environment:
+      DB_HOST: db
+      DB_NAME: ${DB_NAME:-zgroupin_zgroupinformes}
+      DB_USER: ${DB_USER:-zgroupin_zgroupuser}
+      DB_PASS: ${DB_PASS:-ZGROUP_2026}
+    volumes:
+      - .:/var/www/html
+      - ./informes:/var/www/html/informes
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - zgroup_net
+
+volumes:
+  zgroup_db_data:
+
+networks:
+  zgroup_net:
+    driver: bridge
